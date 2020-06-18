@@ -1,0 +1,70 @@
+job("job1")
+{
+description("cloning the code from github")
+scm
+{ 
+github('subhadeep-mondal/task6') 
+}
+triggers
+{
+scm("* * * * *") 
+} 
+steps{
+shell("sudo rm -frv /root/task6")
+shell("sudo mkdir /root/task6")
+shell("sudo cp * -frv /root/task6")
+}
+}
+ 
+
+job("job2")
+{
+description("check the code")
+triggers
+{  
+upstream 
+{
+upstreamProjects("job1")
+threshold("SUCCESS")
+}
+}  
+steps{
+shell("cd /root/task6")
+shell("if sudo ls | grep php; then; sudo kubectl run php --image=php:latest; sudo kubectl expose pods pods/php --port=80 --type=NodePort; sudo kubectl cp /root/task6 php:/usr/src/myapp; else; sudo kubectl run html --image=httpd:latest; sudo kubectl expose pods html --port=80 --type=NodePort; sudo kubectl cp /root/task6 html:/usr/local/apache2/htdocs; fi")
+}  
+}
+
+job("job3")
+{
+description("validate the application")
+triggers
+{  
+upstream
+{
+upstreamProjects("job2")
+threshold("SUCCESS")
+}
+} 
+steps
+{
+shell("sudo cd /root/task6")
+shell("status=curl -o /dev/null -s -w %{http_code} 192.168.99.100");
+shell("if sudo '$status' == '200'; then; exit 1; else; exit 0; fi")
+}
+}
+
+job("job4")
+{
+description("validate the application")
+triggers
+{  
+upstream
+{
+upstreamProjects("job3")
+threshold("SUCCESS")
+}
+steps{
+shell("sudo python3 /root/mail.py")
+}
+}
+abe}
